@@ -1,0 +1,236 @@
+<script>
+$(document).ready(function() {
+    // When jenis is selected, load barang
+    $('#jenis_id').change(function() {
+        var jenis_id = $(this).val();
+        if(jenis_id) {
+            $('#barang_id').prop('disabled', false);
+            $.ajax({
+                url: '<?= base_url('barangmasuk/get_barang_by_jenis/') ?>' + jenis_id,
+                type: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    $('#barang_id').html('<option value="">Pilih Barang</option>');
+                    $.each(data, function(key, value) {
+                        $('#barang_id').append('<option value="'+ value.id_barang +'">'+ value.nama_barang +'</option>');
+                    });
+                    // Reset dependent fields
+                    $('#stok').val('');
+                    $('#harga_beli').val('');
+                    $('#total').val('');
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error:', error);
+                    $('#barang_id').html('<option value="">Pilih Barang</option>');
+                }
+            });
+        } else {
+            $('#barang_id').prop('disabled', true);
+            $('#barang_id').html('<option value="">Pilih Barang</option>');
+            // Reset dependent fields
+            $('#stok').val('');
+            $('#harga_beli').val('');
+            $('#total').val('');
+        }
+    });
+
+    // When barang is selected, load details
+    $('#barang_id').change(function() {
+        var barang_id = $(this).val();
+        if(barang_id) {
+            $.ajax({
+                url: '<?= base_url('barangmasuk/get_barang_details/') ?>' + barang_id,
+                type: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    $('#stok').val(data.stok);
+                    if ($('#harga_beli').val() === '') {
+                        $('#harga_beli').val(data.harga_beli);
+                    }
+                    // Calculate total if jumlah_masuk has value
+                    if ($('#jumlah_masuk').val() !== '') {
+                        var harga = parseFloat($('#harga_beli').val()) || 0;
+                        var jumlah = parseFloat($('#jumlah_masuk').val()) || 0;
+                        $('#total').val(harga * jumlah);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error:', error);
+                    $('#stok').val('');
+                    $('#harga_beli').val('');
+                    $('#total').val('');
+                }
+            });
+        } else {
+            $('#stok').val('');
+            $('#harga_beli').val('');
+            $('#total').val('');
+        }
+    });
+
+    // Initialize datepicker
+    $('.date').daterangepicker({
+        singleDatePicker: true,
+        showDropdowns: true,
+        locale: {
+            format: 'YYYY-MM-DD'
+        },
+        ranges: {}
+    });
+
+    // Calculate total when harga_beli or jumlah_masuk changes
+    $('#harga_beli, #jumlah_masuk').on('input', function() {
+        var harga = parseFloat($('#harga_beli').val()) || 0;
+        var jumlah = parseFloat($('#jumlah_masuk').val()) || 0;
+        $('#total').val(harga * jumlah);
+    });
+});
+</script>
+
+                                <td><?= (int) $b['stok']; ?></td>
+
+                                public function getBarangMasuk()
+{
+    $this->db->select('
+        bm.*,
+        b.nama_barang,
+        sup.nama_supplier,
+        sat.nama_satuan,
+        j.nama_jenis
+    ');
+    $this->db->from('barang_masuk bm');
+    $this->db->join('barang b', 'b.id_barang = bm.barang_id', 'left');
+    $this->db->join('supplier sup', 'sup.id_supplier = bm.supplier_id', 'left');
+    $this->db->join('satuan sat', 'sat.id_satuan = b.id_satuan', 'left');
+    $this->db->join('jenis j', 'j.id_jenis = b.id_jenis', 'left');
+    $this->db->order_by('bm.tanggal', 'DESC');
+    
+    return $this->db->get()->result_array();
+}
+<script>
+$(document).ready(function() {
+    // Method 1: Lebih robust untuk destroy existing DataTable
+    if ($.fn.DataTable.isDataTable('#dataTable')) {
+        $('#dataTable').DataTable().clear().destroy();
+        $('#dataTable').empty(); // Hapus semua konten tabel jika perlu
+    }
+
+    // Tunggu sebentar sebelum inisialisasi ulang
+    setTimeout(function() {
+        try {
+            // Inisialisasi DataTable dengan error handling
+            var table = $('#dataTable').DataTable({
+                "responsive": true,
+                "pageLength": 25,
+                "order": [[ 1, "desc" ]],
+                "columnDefs": [
+                    { "orderable": false, "targets": [17] } // Sesuaikan dengan kolom terakhir (index 17 untuk 18 kolom)
+                ],
+                "language": {
+                    "url": "//cdn.datatables.net/plug-ins/1.13.7/i18n/id.json" // Gunakan versi terbaru dan protocol-relative URL
+                },
+                "processing": true,
+                "serverSide": false,
+                "deferRender": true,
+                "stateSave": false, // Disable state saving untuk menghindari konflik
+                "destroy": true, // Tambahkan opsi destroy
+                
+                // Search Configuration
+                "searching": true, // Enable search functionality
+                "search": {
+                    "smart": true, // Enable smart search
+                    "regex": false, // Disable regex search for better performance
+                    "caseInsensitive": true // Case insensitive search
+                },
+                
+                // Individual column search
+                "initComplete": function () {
+                    // Add search inputs to each column header
+                    this.api().columns().every(function (index) {
+                        var column = this;
+                        var title = $(column.header()).text();
+                        
+                        // Skip No. column and Action columns from individual search
+                        if (index === 0 || index === 17) {
+                            $(column.header()).append('<div style="margin-top: 5px;"></div>');
+                            return;
+                        }
+                        
+                        // Create search input for each column
+                        var input = $('<input type="text" class="form-control form-control-sm" placeholder="Cari ' + title + '" style="margin-top: 5px; font-size: 11px;">')
+                            .appendTo($(column.header()))
+                            .on('keyup change clear', function () {
+                                if (column.search() !== this.value) {
+                                    column.search(this.value).draw();
+                                }
+                            });
+                    });
+                },
+                
+                // Custom search functionality
+                "dom": '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
+                       '<"row"<"col-sm-12"tr>>' +
+                       '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+                
+                // Search highlight
+                "searchHighlight": true
+            });
+        } catch (e) {
+            console.error('Error initializing DataTable:', e);
+            // Fallback: coba inisialisasi sederhana
+            $('#dataTable').DataTable({
+                "destroy": true,
+                "pageLength": 25,
+                "searching": true // Enable search di fallback juga
+            });
+        }
+    }, 100);
+});
+
+// Alternative method - jika masih ada masalah, gunakan ini
+// $(document).ready(function() {
+//     // Method 2: Force destroy dan recreate
+//     $('#dataTable').DataTable().destroy();
+//     $('#dataTable').DataTable({
+//         "destroy": true,
+//         "responsive": true,
+//         "pageLength": 25,
+//         "order": [[ 1, "desc" ]],
+//         "searching": true, // Enable search
+//         "language": {
+//             "url": "//cdn.datatables.net/plug-ins/1.13.7/i18n/id.json"
+//         }
+//     });
+// });
+
+// Method 3: Simple search-only version
+// $(document).ready(function() {
+//     $('#dataTable').DataTable({
+//         "destroy": true,
+//         "searching": true,
+//         "pageLength": 25,
+//         "language": {
+//             "search": "Cari:",
+//             "lengthMenu": "Tampilkan _MENU_ data per halaman",
+//             "info": "Menampilkan _START_ sampai _END_ dari _TOTAL_ data",
+//             "paginate": {
+//                 "first": "Pertama",
+//                 "last": "Terakhir", 
+//                 "next": "Selanjutnya",
+//                 "previous": "Sebelumnya"
+//             }
+//         }
+//     });
+// });
+
+// Custom search box (optional)
+// function addCustomSearchBox() {
+//     // Add custom search box above table
+//     var customSearch = $('<div class="row mb-3"><div class="col-md-4"><label>Pencarian Global:</label><input type="text" class="form-control" id="globalSearch" placeholder="Ketik untuk mencari..."></div></div>');
+//     $('#dataTable_wrapper').prepend(customSearch);
+//     
+//     $('#globalSearch').on('keyup', function() {
+//         $('#dataTable').DataTable().search(this.value).draw();
+//     });
+// }
+</script>

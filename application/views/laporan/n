@@ -1,0 +1,289 @@
+ <!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="data:,">
+    <title><?= isset($title) ? $title : 'Laporan Transaksi' ?></title>
+    <style>
+        /* CSS untuk tampilan cetak */
+        body { 
+            font-family: "Times New Roman", Times, serif; 
+            font-size: 11pt;
+            margin: 0;
+            padding: 20px;
+        }
+        .header { 
+            text-align: center; 
+            margin-bottom: 15px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+        }
+        .header h1 { 
+            font-size: 14pt; 
+            margin: 0 0 5px 0;
+            font-weight: bold;
+        }
+        .header p { 
+            font-size: 11pt; 
+            margin: 0;
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 10pt;
+        }
+        th, td { 
+            border: 1px solid #000; 
+            padding: 5px 8px;
+            vertical-align: top;
+        }
+        th { 
+            background-color: #f2f2f2; 
+            text-align: center;
+            font-weight: bold;
+        }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .text-left { text-align: left; }
+        .no { width: 5%; }
+        .tanggal { width: 9%; }
+        .supplier { width: 12%; }
+        .nota { width: 8%; }
+        .jenis { width: 12%; }
+        .barang { width: 18%; }
+        .satuan { width: 8%; }
+        .jumlah { width: 5%; }
+        .harga { width: 10%; }
+        .total { width: 12%; }
+        .pembayaran { width: 12%; }
+        .keterangan { width: 5%; }
+        .footer {
+            margin-top: 20px;
+            text-align: right;
+            font-style: italic;
+        }
+        .no-data {
+            text-align: center;
+            padding: 50px;
+            font-size: 14pt;
+            color: #666;
+        }
+        @media print {
+            .no-print { display: none !important; }
+            @page {
+                size: A4 landscape;
+                margin: 10mm;
+            }
+            body {
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>LAPORAN <?= strtoupper($table_type == 'barang_masuk' ? 'BARANG MASUK' : 'BARANG KELUAR') ?></h1>
+        <p>Periode: <?= $tanggal ?></p>
+    </div>
+
+    <?php if (isset($no_data) && $no_data): ?>
+        <div class="no-data">
+            <h3>Tidak ada data untuk periode yang dipilih</h3>
+            <p>Silakan pilih periode tanggal yang berbeda atau pastikan data sudah diinput dengan benar.</p>
+        </div>
+    <?php else: ?>
+        <table>
+            <thead>
+                <tr>
+                    <th class="no">No</th>
+                    <th class="tanggal">Tanggal</th>
+                    <th class="supplier"><?= $table_type == 'barang_masuk' ? 'Supplier' : 'Customer' ?></th>
+                    <th class="nota">Nota</th>
+                    <th class="jenis">Kelompok Barang</th>
+                    <th class="barang">Nama Barang</th>
+                    <th class="satuan">Satuan</th>
+                    <th class="jumlah">Jumlah</th>
+                    <th class="harga">Harga</th>
+                    <th class="total">Total</th>
+                    <th class="pembayaran">Tunai</th>
+                    <th class="pembayaran">Kredit</th>
+                    <th class="keterangan">Keterangan</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (empty($data)): ?>
+                    <tr>
+                        <td colspan="13" class="text-center" style="padding: 30px;">
+                            <strong>Tidak ada data untuk periode yang dipilih</strong>
+                        </td>
+                    </tr>
+                <?php else: ?>
+                    <?php 
+                        $no = 1; 
+                        $total_harga = 0;
+                        $total_tunai = 0;
+                        $total_kredit = 0;
+                        foreach ($data as $row): 
+                            // Tentukan kolom tanggal berdasarkan tipe table
+                            if ($table_type == 'barang_masuk') {
+                                $tanggal_data = isset($row['tanggal']) ? $row['tanggal'] : '';
+                                $jumlah_field = isset($row['jumlah']) ? $row['jumlah'] : (isset($row['jumlah_masuk']) ? $row['jumlah_masuk'] : 0);
+                            } else {
+                                $tanggal_data = isset($row['tanggal_keluar']) ? $row['tanggal_keluar'] : '';
+                                $jumlah_field = isset($row['jumlah']) ? $row['jumlah'] : (isset($row['jumlah_keluar']) ? $row['jumlah_keluar'] : 0);
+                            }
+                            
+                            // Handle null values dengan memberikan default value 0
+                            $harga = isset($row['harga_setelah_potongan']) && !is_null($row['harga_setelah_potongan']) ? (float)$row['harga_setelah_potongan'] : 0;
+                            $tunai = isset($row['tunai']) && !is_null($row['tunai']) ? (float)$row['tunai'] : 0;
+                            $kredit = isset($row['kredit']) && !is_null($row['kredit']) ? (float)$row['kredit'] : 0;
+                            $subtotal = isset($row['total']) && !is_null($row['total']) ? (float)$row['total'] : 0;
+                            $jumlah = is_numeric($jumlah_field) ? (int)$jumlah_field : 0;
+                            
+                            $total_harga += $subtotal;
+                            $total_tunai += $tunai;
+                            $total_kredit += $kredit;
+                    ?>
+                    <tr>
+                        <td class="text-center"><?= $no++ ?></td>
+                        <td class="text-center">
+                            <?= !empty($tanggal_data) ? date('d/m/Y', strtotime($tanggal_data)) : '-' ?>
+                        </td>
+                        <td class="text-left"><?= isset($row['nama_supplier']) ? htmlspecialchars($row['nama_supplier']) : '-' ?></td>
+                        <td class="text-center"><?= isset($row['nota']) ? htmlspecialchars($row['nota']) : '-' ?></td>
+                        <td class="text-left"><?= isset($row['nama_jenis']) ? htmlspecialchars($row['nama_jenis']) : '-' ?></td>
+                        <td class="text-left"><?= isset($row['nama_barang']) ? htmlspecialchars($row['nama_barang']) : '-' ?></td>
+                        <td class="text-center"><?= isset($row['nama_satuan']) ? htmlspecialchars($row['nama_satuan']) : '-' ?></td>
+                        <td class="text-center"><?= number_format($jumlah, 0, ',', '.') ?></td>
+                        <td class="text-right"><?= "Rp. " . number_format($harga, 0, ',', '.') ?></td>
+                        <td class="text-right"><?= "Rp. " . number_format($subtotal, 0, ',', '.') ?></td>
+                        <td class="text-right"><?= "Rp. " . number_format($tunai, 0, ',', '.') ?></td>
+                        <td class="text-right"><?= "Rp. " . number_format($kredit, 0, ',', '.') ?></td>
+                        <td class="text-left"><?= isset($row['keterangan']) ? htmlspecialchars($row['keterangan']) : '-' ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    <tr style="background-color: #f8f9fa; font-weight: bold;">
+                        <td colspan="9" class="text-right"><strong>TOTAL</strong></td>
+                        <td class="text-right"><strong><?= "Rp. " . number_format($total_harga, 0, ',', '.') ?></strong></td>
+                        <td class="text-right"><strong><?= "Rp. " . number_format($total_tunai, 0, ',', '.') ?></strong></td>
+                        <td class="text-right"><strong><?= "Rp. " . number_format($total_kredit, 0, ',', '.') ?></strong></td>
+                        <td></td>
+                    </tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    <?php endif; ?>
+
+    <div class="footer">
+
+     private function n_cetak($data, $table_type, $tanggal, $action = 'print')
+    {
+        if (empty($data)) {
+            $view_data = [
+                'title' => 'Laporan ' . ($table_type == 'barang_masuk' ? 'Barang Masuk' : 'Barang Keluar'),
+                'table_type' => $table_type,
+                'tanggal' => $tanggal,
+                'no_data' => true,
+                'action' => $action
+            ];
+            $this->load->view('laporan/cetak', $view_data);
+            return;
+        }
+
+
+        $table_title = $table_type == 'barang_masuk' ? 'Barang Masuk' : 'Barang Keluar';
+
+
+        if ($action == 'pdf') {
+            include_once APPPATH.'third_party/fpdf/fpdf.php';
+            $pdf = new FPDF('L', 'mm', 'A4');
+            $pdf->AddPage();
+            $pdf->SetMargins(10, 10, 10);
+
+
+            // Header
+            $pdf->SetFont('Times', 'B', 16);
+            $pdf->Cell(0, 10, 'LAPORAN ' . strtoupper($table_title), 0, 1, 'C');
+            $pdf->SetFont('Times', '', 12);
+            $pdf->Cell(0, 7, 'Periode: ' . $tanggal, 0, 1, 'C');
+            $pdf->Ln(10);
+
+
+            // Table header
+            $pdf->SetFont('Arial', 'B', 8);
+
+
+            if ($table_type == 'barang_masuk') {
+                $header = array('NO', 'TANGGAL', 'SUPPLIER', 'NOTA', 'JENIS BARANG', 'NAMA BARANG', 'SATUAN', 'JUMLAH', 'HARGA BELI', 'TOTAL', 'TUNAI', 'KREDIT', 'KETERANGAN');
+                $widths = array(10, 25, 30, 25, 25, 30, 20, 15, 20, 20, 15, 15, 30);
+            } else {
+                $header = array('NO', 'TANGGAL', 'SUPPLIER', 'NOTA', 'JENIS BARANG', 'NAMA BARANG', 'SATUAN', 'JUMLAH', 'HARGA BELI', 'TOTAL', 'TUNAI', 'KREDIT', 'KETERANGAN');
+                $widths = array(10, 25, 30, 25, 25, 30, 20, 15, 20, 20, 15, 15, 30);
+            }
+
+
+            // Print table header
+            for ($i = 0; $i < count($header); $i++) {
+                $pdf->Cell($widths[$i], 7, $header[$i], 1, 0, 'C');
+            }
+            $pdf->Ln();
+
+
+            // Table content
+            $pdf->SetFont('Arial', '', 8);
+            $no = 1;
+
+
+            foreach ($data as $row) {
+                $pdf->Cell($widths[0], 6, $no++, 1, 0, 'C');
+
+
+                if ($table_type == 'barang_masuk') {
+                    $pdf->Cell($widths[1], 6, date('d/m/Y', strtotime($row['tanggal'])), 1, 0, 'C');
+                    $pdf->Cell($widths[2], 6, $row['nama_supplier'], 1, 0, 'L');
+                    $pdf->Cell($widths[3], 6, $row['nota'], 1, 0, 'C');
+                    $pdf->Cell($widths[4], 6, $row['nama_jenis'], 1, 0, 'L');
+                    $pdf->Cell($widths[5], 6, $row['nama_barang'], 1, 0, 'L');
+                    $pdf->Cell($widths[6], 6, $row['nama_satuan'], 1, 0, 'C');
+                    $pdf->Cell($widths[7], 6, $row['jumlah_masuk'], 1, 0, 'C');
+                    $pdf->Cell($widths[8], 6, number_format($row['harga_setelah_potongan'], 0, ',', '.'), 1, 0, 'R');
+                    $pdf->Cell($widths[9], 6, number_format($row['total'], 0, ',', '.'), 1, 0, 'R');
+                    $pdf->Cell($widths[10], 6, $row['tunai'], 1, 0, 'C');
+                    $pdf->Cell($widths[11], 6, $row['kredit'], 1, 0, 'C');
+                    $pdf->Cell($widths[12], 6, $row['keterangan'], 1, 0, 'L');
+                } else {
+                    $pdf->Cell($widths[1], 6, date('d/m/Y', strtotime($row['tanggal_keluar'])), 1, 0, 'C');
+                    $pdf->Cell($widths[2], 6, $row['nama_supplier'], 1, 0, 'L');
+                    $pdf->Cell($widths[3], 6, $row['nota'], 1, 0, 'C');
+                    $pdf->Cell($widths[4], 6, $row['nama_jenis'], 1, 0, 'L');
+                    $pdf->Cell($widths[5], 6, $row['nama_barang'], 1, 0, 'L');
+                    $pdf->Cell($widths[6], 6, $row['nama_satuan'], 1, 0, 'C');
+                    $pdf->Cell($widths[7], 6, $row['jumlah_keluar'], 1, 0, 'C');
+                    $pdf->Cell($widths[8], 6, number_format($row['harga_setelah_potongan'], 0, ',', '.'), 1, 0, 'R');
+                    $pdf->Cell($widths[9], 6, number_format($row['total'], 0, ',', '.'), 1, 0, 'R');
+                    $pdf->Cell($widths[10], 6, $row['tunai'], 1, 0, 'C');
+                    $pdf->Cell($widths[11], 6, $row['kredit'], 1, 0, 'C');
+                    $pdf->Cell($widths[12], 6, $row['keterangan'], 1, 0, 'L');
+                }
+                $pdf->Ln();
+            }
+
+
+            $filename = 'Laporan_' . $table_title . '_' . str_replace(' - ', '_sampai_', $tanggal);
+            $filename = preg_replace('/[^A-Za-z0-9_\-]/', '_', $filename);
+            $pdf->Output('D', $filename . '.pdf');
+        } else {
+            // Untuk opsi print, tampilkan HTML
+            $view_data = [
+                'title' => 'Laporan ' . $table_title,
+                'table_type' => $table_type,
+                'tanggal' => $tanggal,
+                'data' => $data,
+                'action' => $action
+            ];
+            $this->load->view('laporan/cetak', $view_data);
+        }
+    }
