@@ -28,7 +28,7 @@
     <div class="overlay-container">
         <div class="overlay">
             <div class="overlay-panel">
-                <h1>Selamat Datang Admin</h1>
+                <h1>Selamat Datang Cuy</h1>
                 <p>Silakan login dengan akun yang sudah terdaftar</p>
             </div>
         </div>
